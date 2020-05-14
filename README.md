@@ -1,2 +1,2 @@
-# dir-ocr
-Project for scanning folders and doing ocr recognition
+# WheresTheFckReceipt
+OCR Recognition and Search using Python with Qt, poppler and tesseract
