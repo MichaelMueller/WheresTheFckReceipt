@@ -1,0 +1,9 @@
+pdf2image
+Pillow
+PyQt5
+PyQt5-sip
+PyQt5-stubs
+pytesseract
+opencv-python
+fbs
+pypiwin32
