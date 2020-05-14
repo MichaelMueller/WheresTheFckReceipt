@@ -400,6 +400,7 @@ class DbFactory(api_interface.DbFactory):
         return db
 
     def update_schema(self, c: sqlite3.Cursor):
+
         current_schema_version = None
         rows = c.execute("select value from settings where key = 'current_schema_version'").fetchone()
         if rows:
@@ -416,22 +417,25 @@ class DbFactory(api_interface.DbFactory):
             c.execute("insert into settings (key, value, help, type, hidden) values('current_schema_version',  '1', 'Current Schema Version', 'int', 1)")
             c.execute("insert into settings (key, value, help, type, hidden) values('tesseract_exe', null, 'Path to Tesseract Exe', 'file', 0)")
             c.execute("insert into settings (key, value, help, type, hidden) values('pdftopmm_exe', null, 'Path to Poppler Exe', 'file', 0)")
-            self.update_schema(c)
 
-        elif current_schema_version == 1:
+        if current_schema_version <= 1:
             c.execute("insert into settings (key, value, help, type, hidden) values('default_limit', 0, 'The default limit for the search', 'int', 0)")
-            c.execute("update settings set value=2 where key = 'current_schema_version'")
-            self.update_schema(c)
 
-        elif current_schema_version == 2:
+        if current_schema_version <= 2:
             c.execute("insert into settings (key, value, help, type, hidden) values('poppler_path', 0, 'The path for poppler', 'dir', 0)")
             c.execute("delete from settings where key = 'pdftopmm_exe'")
-            c.execute("update settings set value=3 where key = 'current_schema_version'")
-            self.update_schema(c)
 
-        elif current_schema_version == 3:
+        if current_schema_version <= 3:
             c.execute("update settings set value=NULL where key = 'poppler_path'")
-            c.execute("update settings set value=4 where key = 'current_schema_version'")
-            self.update_schema(c)
+
+        if current_schema_version <= 4:
+            c.execute("update settings set help='Path to the poppler bin directory. Leave this empty if the path is in your PATH variable. Poppler for Windows can be downloaded from https://blog.alivate.com.au/poppler-windows/' where key = 'poppler_path'")
+            c.execute("update settings set help='Path to Tesseract executable. Leave this empty if the executable is in your PATH variable. Tesseract for Windows can be downloaded from https://github.com/UB-Mannheim/tesseract/wiki' where key = 'tesseract_exe'")
+
+        if current_schema_version <= 5:
+            c.execute("update settings set help='Path to the poppler bin directory. Leave this empty if the path is in your PATH variable. Poppler for Windows can be downloaded from <a href=\"https://blog.alivate.com.au/poppler-windows/\">https://blog.alivate.com.au/poppler-windows/</a>' where key = 'poppler_path'")
+            c.execute("update settings set help='Path to Tesseract executable. Leave this empty if the executable is in your PATH variable. Tesseract for Windows can be downloaded from <a href=\"https://github.com/UB-Mannheim/tesseract/wiki\">https://github.com/UB-Mannheim/tesseract/wiki</a>' where key = 'tesseract_exe'")
+
+        c.execute("update settings set value=? where key = 'current_schema_version'", (5,))
 
 

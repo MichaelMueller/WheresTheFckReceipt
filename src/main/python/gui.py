@@ -288,13 +288,17 @@ class SettingsWidget(QTableWidget):
             # value_item.setFlags(value_item.flags() & Qt.ItemIsEditable)
 
             help_ = value_help_type[1]
-            help_item = QTableWidgetItem(help_)
-            help_item.setFlags(help_item.flags() ^ Qt.ItemIsEditable)
+            #help_item = QTableWidgetItem(help_)
+            #help_item.setFlags(help_item.flags() ^ Qt.ItemIsEditable)
+            help_item = QLabel(help_)
+            help_item.setTextFormat(Qt.RichText)
+            help_item.setOpenExternalLinks(True)
 
             self.insertRow(row)
             self.setItem(row, 0, key_item)
             self.setItem(row, 1, value_item)
-            self.setItem(row, 2, help_item)
+            #self.setItem(row, 2, help_item)
+            self.setCellWidget(row, 2, help_item)
             row = row + 1
 
         self.cellChanged.connect(self.on_cell_changed)
