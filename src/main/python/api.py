@@ -10,7 +10,8 @@ from typing import List, Dict, Tuple
 
 import cv2
 import numpy as np
-from pdf2image import convert_from_path
+#import pd2image_patched
+from pd2image_patched import convert_from_path
 from pytesseract import pytesseract, Output
 
 import api_interface
@@ -316,7 +317,7 @@ class WheresTheFckReceipt(api_interface.WheresTheFckReceipt):
             query = "%" + query.lower() + "%"
             text_where_clause = "lower(texts.text) like ?"
 
-        sql = "select images.path as path, texts.text as text, images.doc_page as page, images.document_id as doc_id, texts.top as top, texts.left as left, texts.width as width, texts.height as height from images, texts where texts.image_id = images.id and texts.text like ?"
+        sql = "select images.path as path, texts.text as text, images.doc_page as page, images.document_id as doc_id, texts.top as top, texts.left as left, texts.width as width, texts.height as height from images, texts where texts.image_id = images.id and "+text_where_clause
         if limit:
             sql = sql + " limit ?"
             c.execute(sql, (query, limit))
