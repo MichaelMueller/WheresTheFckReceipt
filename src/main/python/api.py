@@ -335,6 +335,9 @@ class WheresTheFckReceipt(api_interface.WheresTheFckReceipt):
         return self.add_directory(directory)
 
     def search(self, query: str, limit: int = None, case_sensitive: bool = False) -> List[Result]:
+        if query is None or query == "":
+            return []
+        
         self.assert_db()
         c = self.db.cursor()
         if case_sensitive:

@@ -201,6 +201,7 @@ class SearcherWidget(QWidget):
 
         # query
         self.query = QLineEdit()
+        self.query.mousePressEvent = lambda _: self.query.selectAll()
         self.query.returnPressed.connect(self.search_button_clicked)
         self.limit_box = QSpinBox()
         self.limit_box.setValue(int(self.wheres_the_fck_receipt.get_settings()["default_limit"][0]))
@@ -282,8 +283,7 @@ class SearcherWidget(QWidget):
         self.preview.setPixmap(QPixmap(self.current_preview_image).scaled(w, h, Qt.KeepAspectRatio))
 
     def search_button_clicked(self):
-        if self.query.text() == "":
-            return
+        self.preview.setText("No image selected.")
 
         settings = QSettings('WheresTheFckReceipt', 'WheresTheFckReceipt')
         settings.setValue("query_text", self.query.text())
