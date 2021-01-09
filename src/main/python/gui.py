@@ -1,5 +1,6 @@
 import os
 import platform
+import shutil
 import sqlite3
 import subprocess
 import sys
@@ -15,7 +16,8 @@ from PyQt5.QtGui import QPixmap
 from fbs_runtime.application_context.PyQt5 import ApplicationContext
 from PyQt5.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QLabel, QListWidget, QPushButton, QHBoxLayout, \
     QTabWidget, QTextEdit, QApplication, QProgressBar, QFileDialog, QMessageBox, QLineEdit, QTableWidget, QSpinBox, \
-    QHeaderView, QTableWidgetItem, QAbstractItemView, QSplitter, QCheckBox
+    QHeaderView, QTableWidgetItem, QAbstractItemView, QSplitter, QCheckBox, QMenu
+from PyQt5.QtCore import QSettings, QPoint
 
 from pytesseract import pytesseract, Output
 import api_interface
@@ -92,10 +94,16 @@ class Indexer(QWidget):
         self.file_list_action_bar_widget.setEnabled(len(list_items) == 1)
 
     def add_directory_clicked(self):
+
+        settings = QSettings('WheresTheFckReceipt', 'WheresTheFckReceipt')
+        last_directory_added = settings.value("last_directory_added", "")
+
         directory = str(QFileDialog.getExistingDirectory(self, "Select Directory",
-                                                         self.wheres_the_fck_receipt.get_last_directory(),
+                                                         last_directory_added,
                                                          QFileDialog.ShowDirsOnly))
         if directory:
+            settings.setValue("last_directory_added", directory)
+            del settings
             # get the job
             if not self.directories.findItems(directory, Qt.MatchExactly):
                 self.directories.addItem(directory)
@@ -157,6 +165,33 @@ class Indexer(QWidget):
             self.indexing_stopped()
 
 
+class MatcherTableWidget(QTableWidget):
+
+    def __init__(self, parent=None):
+        QTableWidget.__init__(self, parent)
+
+    def contextMenuEvent(self, event):
+        menu = QMenu(self)
+        save_action = menu.addAction("Save")
+        action = menu.exec_(self.mapToGlobal(event.pos()))
+        if action == save_action and self.rowCount() > 0:
+            current = self.currentRow()
+            if current is not None:
+                path = self.item(current, 3).text()
+                name = self.item(current, 0).text()
+                full_path = path + "/" + name
+                ext = os.path.splitext(name)[1]
+
+                settings = QSettings('WheresTheFckReceipt', 'WheresTheFckReceipt')
+                save_file_path = settings.value("save_file_path", full_path)
+                if save_file_path != full_path:
+                    save_file_path = save_file_path + "/" + name
+                new_path = QFileDialog.getSaveFileName(self, 'Save File', save_file_path, filter="*" + ext)
+                if new_path[0]:
+                    settings.setValue("save_file_path", os.path.dirname(new_path[0]))
+                    shutil.copyfile(full_path, new_path[0])
+
+
 class SearcherWidget(QWidget):
     def __init__(self, wheres_the_fck_receipt: api_interface.WheresTheFckReceipt, parent=None):
         QWidget.__init__(self, parent)
@@ -183,7 +218,7 @@ class SearcherWidget(QWidget):
         query_bar_layout.addWidget(search_button)
 
         # the file_list
-        self.match_list = QTableWidget()
+        self.match_list = MatcherTableWidget()
         self.match_list.setShowGrid(True)
         self.match_list.setAutoScroll(True)
         self.match_list.setSelectionMode(QAbstractItemView.SingleSelection)
@@ -197,6 +232,12 @@ class SearcherWidget(QWidget):
         self.preview_widget.setContentsMargins(0, 0, 0, 0)
         self.preview_widget.addWidget(self.match_list)
         self.preview_widget.addWidget(self.preview)
+
+        # review settings
+        settings = QSettings('WheresTheFckReceipt', 'WheresTheFckReceipt')
+        self.query.setText(settings.value("query_text", ""))
+        self.limit_box.setValue(settings.value("limit_box_value", 0))
+        self.cs_box.setChecked(bool(settings.value("cs_box_checked", False)))
 
         # my layout
         layout = QVBoxLayout()
@@ -241,20 +282,30 @@ class SearcherWidget(QWidget):
         self.preview.setPixmap(QPixmap(self.current_preview_image).scaled(w, h, Qt.KeepAspectRatio))
 
     def search_button_clicked(self):
+        if self.query.text() == "":
+            return
+
+        settings = QSettings('WheresTheFckReceipt', 'WheresTheFckReceipt')
+        settings.setValue("query_text", self.query.text())
+        settings.setValue("limit_box_value", self.limit_box.value())
+        settings.setValue("cs_box_checked", self.cs_box.isChecked())
+        del settings
+
         self.results = self.wheres_the_fck_receipt.search(self.query.text(), self.limit_box.value(),
                                                           self.cs_box.isChecked())
         self.match_list.clear()
         self.match_list.setColumnCount(3)
-        self.match_list.setHorizontalHeaderLabels(['Text', 'Path', 'Page'])
+        self.match_list.setHorizontalHeaderLabels(['File', 'Page', 'Path'])
         header = self.match_list.horizontalHeader()
         header.setSectionResizeMode(QtWidgets.QHeaderView.ResizeToContents)
         # header.setStretchLastSection(True)
         self.match_list.setRowCount(len(self.results))
         for i in range(len(self.results)):
             result = self.results[i]
-            self.match_list.setItem(i, 0, QTableWidgetItem(result.get_text()))
-            self.match_list.setItem(i, 1, QTableWidgetItem(result.get_path()))
-            self.match_list.setItem(i, 2, QTableWidgetItem(str(result.get_page())))
+            path = result.get_path()
+            self.match_list.setItem(i, 0, QTableWidgetItem(os.path.basename(path)))
+            self.match_list.setItem(i, 1, QTableWidgetItem(str(result.get_page())))
+            self.match_list.setItem(i, 2, QTableWidgetItem(os.path.dirname(path)))
 
         self.query.setFocus()
         self.query.selectAll()
@@ -267,8 +318,8 @@ class SettingsWidget(QTableWidget):
         self.wheres_the_fck_receipt = wheres_the_fck_receipt
         # settings table
         self.setShowGrid(True)
-        #self.setSelectionMode(QAbstractItemView.SingleSelection)
-        #self.setSelectionBehavior(QAbstractItemView.SelectRows)
+        # self.setSelectionMode(QAbstractItemView.SingleSelection)
+        # self.setSelectionBehavior(QAbstractItemView.SelectRows)
         self.setColumnCount(3)
         self.setHorizontalHeaderLabels(['Key', 'Value', 'Help'])
         header = self.horizontalHeader()
@@ -288,8 +339,8 @@ class SettingsWidget(QTableWidget):
             # value_item.setFlags(value_item.flags() & Qt.ItemIsEditable)
 
             help_ = value_help_type[1]
-            #help_item = QTableWidgetItem(help_)
-            #help_item.setFlags(help_item.flags() ^ Qt.ItemIsEditable)
+            # help_item = QTableWidgetItem(help_)
+            # help_item.setFlags(help_item.flags() ^ Qt.ItemIsEditable)
             help_item = QLabel(help_)
             help_item.setTextFormat(Qt.RichText)
             help_item.setOpenExternalLinks(True)
@@ -297,7 +348,7 @@ class SettingsWidget(QTableWidget):
             self.insertRow(row)
             self.setItem(row, 0, key_item)
             self.setItem(row, 1, value_item)
-            #self.setItem(row, 2, help_item)
+            # self.setItem(row, 2, help_item)
             self.setCellWidget(row, 2, help_item)
             row = row + 1
 
@@ -312,6 +363,7 @@ class SettingsWidget(QTableWidget):
             settings[key_] = value_
         self.wheres_the_fck_receipt.set_settings(settings)
 
+
 class WheresTheFckReceipt(QMainWindow):
 
     def __init__(self, wheres_the_fck_receipt: api_interface.WheresTheFckReceipt, parent=None):
@@ -323,6 +375,12 @@ class WheresTheFckReceipt(QMainWindow):
         self.tab_widget.addTab(SettingsWidget(wheres_the_fck_receipt), "Settings")
         self.tab_widget.addTab(Indexer(wheres_the_fck_receipt), "Indexer")
         self.tab_widget.addTab(SearcherWidget(wheres_the_fck_receipt), "Searcher")
+        self.tab_widget.currentChanged.connect(self.tab_changed)
+
+        # get settings
+        settings = QSettings('WheresTheFckReceipt', 'WheresTheFckReceipt')
+        active_tab = settings.value("active_tab", 0)
+        self.tab_widget.setCurrentIndex(active_tab)
 
         # build window title
         app_context = ApplicationContext()
@@ -334,3 +392,8 @@ class WheresTheFckReceipt(QMainWindow):
         self.setWindowTitle(window_title)
         self.setCentralWidget(self.tab_widget)
         self.resize(800, 600)
+
+    def tab_changed(self, index):
+        settings = QSettings('WheresTheFckReceipt', 'WheresTheFckReceipt')
+        settings.setValue("active_tab", index)
+        del settings

@@ -42,13 +42,19 @@ class IndexJob:
     def set_settings(self, settings: Dict[str, str]):
         return None
 
+class TextMatch:
+
+    @abc.abstractmethod
+    def get_text(self) -> str:
+        return None
+
 class Result:
     @abc.abstractmethod
     def get_path(self) -> str:
         return None
 
     @abc.abstractmethod
-    def get_text(self) -> str:
+    def get_text_matches(self) -> List[TextMatch]:
         return None
 
     @abc.abstractmethod
