@@ -205,7 +205,9 @@ class SearcherWidget(QWidget):
         self.query.returnPressed.connect(self.search_button_clicked)
         self.limit_box = QSpinBox()
         self.limit_box.setValue(int(self.wheres_the_fck_receipt.get_settings()["default_limit"][0]))
+        self.limit_box.valueChanged.connect(self.search_button_clicked)
         self.cs_box = QCheckBox("Case Sensitive")
+        self.cs_box.stateChanged.connect(self.search_button_clicked)
         search_button = QPushButton('Search')
         search_button.clicked.connect(self.search_button_clicked)
 
