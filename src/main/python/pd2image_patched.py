@@ -192,8 +192,9 @@ def convert_from_path(
         # processes.append(
         #     (thread_output_file, Popen(args, env=env, stdout=PIPE, stderr=PIPE, startupinfo=startupinfo))
         # )
+        creation_flags = subprocess.CREATE_NO_WINDOW if hasattr(subprocess, "CREATE_NO_WINDOW") else 0x08000000
         processes.append(
-            (thread_output_file, Popen(args, env=env, stdout=PIPE, stderr=PIPE, creationflags=subprocess.CREATE_NO_WINDOW ))
+            (thread_output_file, Popen(args, env=env, stdout=PIPE, stderr=PIPE, creationflags=creation_flags ))
         )
 
     images = []
@@ -402,7 +403,8 @@ def _get_poppler_version(command, poppler_path=None):
     env = os.environ.copy()
     if poppler_path is not None:
         env["LD_LIBRARY_PATH"] = poppler_path + ":" + env.get("LD_LIBRARY_PATH", "")
-    proc = Popen(command, env=env, stdout=PIPE, stderr=PIPE, creationflags=subprocess.CREATE_NO_WINDOW)
+    creation_flags = subprocess.CREATE_NO_WINDOW if hasattr(subprocess, "CREATE_NO_WINDOW") else 0x08000000
+    proc = Popen(command, env=env, stdout=PIPE, stderr=PIPE, creationflags=creation_flags)
 
     out, err = proc.communicate()
 
@@ -427,7 +429,9 @@ def pdfinfo_from_path(pdf_path, userpw=None, poppler_path=None):
         env = os.environ.copy()
         if poppler_path is not None:
             env["LD_LIBRARY_PATH"] = poppler_path + ":" + env.get("LD_LIBRARY_PATH", "")
-        proc = Popen(command, env=env, stdout=PIPE, stderr=PIPE, creationflags=subprocess.CREATE_NO_WINDOW)
+
+        creation_flags = subprocess.CREATE_NO_WINDOW if hasattr(subprocess, "CREATE_NO_WINDOW") else 0x08000000
+        proc = Popen(command, env=env, stdout=PIPE, stderr=PIPE, creationflags=creation_flags)
 
         out, err = proc.communicate()
 

@@ -130,10 +130,18 @@ class Indexer(QWidget):
         self.run_indexer()
 
     def remove_clicked(self):
-        progress_updater = ProgressUpdater()
+
+        self.add_directory.setEnabled(False)
+        self.directories.setEnabled(False)
+        self.file_list_action_bar_widget.setEnabled(False)
+        progress_updater = ProgressUpdater(self)
         self.wheres_the_fck_receipt.remove_directory(self.directories.currentItem().text(), progress_updater)
         if progress_updater.canceled() is False:
             self.directories.takeItem(self.directories.currentRow())
+
+        self.add_directory.setEnabled(True)
+        self.directories.setEnabled(True)
+        self.file_list_action_bar_widget.setEnabled(True)
 
     def reindex_clicked(self):
         self.index_job = self.wheres_the_fck_receipt.reindex_directory(self.directories.currentItem().text())
@@ -369,9 +377,10 @@ class SettingsWidget(QTableWidget):
 
 class ProgressUpdater(api_interface.ProgressUpdater):
 
-    def __init__(self):
+    def __init__(self, parent=None):
         self._dialog = None
         self._canceled = False
+        self.parent = parent
 
     def set_range(self, min, max):
         self._assert_dialog()
@@ -388,7 +397,7 @@ class ProgressUpdater(api_interface.ProgressUpdater):
 
     def _assert_dialog(self):
         if self._dialog is None:
-            self._dialog = QtWidgets.QProgressDialog()
+            self._dialog = QtWidgets.QProgressDialog(self.parent)
             self._dialog.setWindowModality(Qt.WindowModal)
             self._dialog.setAutoClose(True)
             self._dialog.canceled.connect(self.canceled)

@@ -206,6 +206,9 @@ class IndexJob(api_interface.IndexJob):
                                 img_path[0].replace(self.path + "/", ""), str(sys.exc_info()[0])))
 
                     db.commit()
+                except Exception as e:
+                    self.__add_message("An Exception occured while processing {}: {}".format(
+                        rel_path, str(e)))
                 except:
                     self.__add_message("An unknown error occured while processing {}: {}".format(
                         rel_path, sys.exc_info()[0]))
@@ -222,7 +225,8 @@ class IndexJob(api_interface.IndexJob):
             self._stop = True
             e = sys.exc_info()[0]
             self.__add_message("An unknown error occured: " + str(e))
-            db.rollback()
+            if db is not None:
+                db.rollback()
 
     def random_string(self, stringLength=5):
         letters = string.ascii_lowercase
