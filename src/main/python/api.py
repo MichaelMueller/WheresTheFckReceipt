@@ -275,7 +275,7 @@ class Result(api_interface.Result):
             if text not in color_per_text.keys():
                 color_per_text[text] = tuple(list(np.random.choice(range(128, 255), size=3)))
             color = color_per_text[text]
-            cv2.rectangle(overlay, (x, y), (x + w, y + h), (0,0,255), 5)  # A filled rectangle
+            cv2.rectangle(overlay, (x, y), (x + w, y + h), (0, 0, 255), 5)  # A filled rectangle
 
             alpha = 0.65  # Transparency factor.
 
@@ -317,14 +317,26 @@ class WheresTheFckReceipt(api_interface.WheresTheFckReceipt):
         tesseract_exe = self.get_setting("tesseract_exe")
         return self.index_job_factory.create(directory, self.db_factory, self.app_data_dir, poppler_path, tesseract_exe)
 
-    def remove_directory(self, directory):
+    def remove_directory(self, directory, progress_updater: api_interface.ProgressUpdater):
         self.assert_db()
         c = self.db.cursor()
         own_images = c.execute(
-            "select images.path as path from images, directories where directories.id = images.directory_id and images.document_id != null")
-        for own_image in own_images.fetchall():
-            os.remove(own_image[0])
-        c.execute("delete from directories where path = ?", (directory,))
+            "select images.path as path, images.id as id from images, directories where directories.path = ? and images.document_id IS NOT NULL and directories.id = images.directory_id", (directory,))
+
+        own_images_list = own_images.fetchall()
+        progress_updater.set_range(0, len(own_images_list))
+        for idx, own_image in enumerate(own_images_list):
+            #time.sleep(1)
+            if progress_updater.canceled():
+                break
+            path = own_image[0] # type: str
+            if path.startswith(self.app_data_dir) and os.path.exists(path):
+                os.remove(path)
+            c.execute("delete from images where id = ?", (own_image[1],))
+            progress_updater.set_value(idx + 1)
+
+        if progress_updater.canceled() is False:
+            c.execute("delete from directories where path = ?", (directory,))
         self.db.commit()
 
     def update_directory(self, directory):
@@ -364,7 +376,7 @@ class WheresTheFckReceipt(api_interface.WheresTheFckReceipt):
             args.append(query_part)
 
             if len(previous_ids) > 0:
-                sql = sql + "and ("
+                sql = sql + " and ("
                 for idx, previous_id in enumerate(previous_ids):
                     sql = sql + " images.id = ?"
                     args.append(previous_id)
@@ -398,7 +410,7 @@ class WheresTheFckReceipt(api_interface.WheresTheFckReceipt):
                 text_match = TextMatch(text, top, left, width, height)
                 result = None
                 for curr_result in result_list:
-                    if curr_result.path == image_path and curr_result.page == page:
+                    if image_id == curr_result.image_id:
                         result = curr_result
                         break
                 if result is None:
@@ -409,7 +421,13 @@ class WheresTheFckReceipt(api_interface.WheresTheFckReceipt):
                     result.text_matches.append(text_match)
 
                 if query_part_idx + 1 == len(query_parts):
-                    final_result_list.append(result)
+                    final_result_exists = False
+                    for curr_result in final_result_list:
+                        if image_id == curr_result.image_id:
+                            final_result_exists = True
+                            break
+                    if not final_result_exists:
+                        final_result_list.append(result)
 
         return final_result_list
 
@@ -528,4 +546,7 @@ class DbFactory(api_interface.DbFactory):
             c.execute(
                 "update settings set help='Path to Tesseract executable. Leave this empty if the executable is in your PATH variable. Tesseract for Windows can be downloaded from <a href=\"https://github.com/UB-Mannheim/tesseract/wiki\">https://github.com/UB-Mannheim/tesseract/wiki</a>' where key = 'tesseract_exe'")
 
-        c.execute("update settings set value=? where key = 'current_schema_version'", (5,))
+        if current_schema_version <= 6:
+            c.execute("delete from settings where key = 'default_limit'")
+
+        c.execute("update settings set value=? where key = 'current_schema_version'", (6,))

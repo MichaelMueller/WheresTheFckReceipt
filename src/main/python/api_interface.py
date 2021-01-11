@@ -42,6 +42,20 @@ class IndexJob:
     def set_settings(self, settings: Dict[str, str]):
         return None
 
+class ProgressUpdater:
+
+    @abc.abstractmethod
+    def set_range(self, min, max):
+        pass
+
+    @abc.abstractmethod
+    def set_value(self, value):
+        pass
+
+    @abc.abstractmethod
+    def canceled(self):
+        return False
+
 class TextMatch:
 
     @abc.abstractmethod
@@ -72,7 +86,7 @@ class WheresTheFckReceipt:
         return None
 
     @abc.abstractmethod
-    def remove_directory(self, directory):
+    def remove_directory(self, directory, progress_updater: ProgressUpdater):
         pass
 
     @abc.abstractmethod

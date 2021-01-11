@@ -11,12 +11,12 @@ import cv2
 from PyQt5 import QtGui, QtWidgets
 
 from PyQt5.QtCore import QDateTime, QStandardPaths, QFile, QFileInfo, Qt, QObject, QThread, pyqtSignal, QTimer, \
-    QSettings, QCoreApplication
+    QSettings, QCoreApplication, QEventLoop
 from PyQt5.QtGui import QPixmap
 from fbs_runtime.application_context.PyQt5 import ApplicationContext
 from PyQt5.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QLabel, QListWidget, QPushButton, QHBoxLayout, \
     QTabWidget, QTextEdit, QApplication, QProgressBar, QFileDialog, QMessageBox, QLineEdit, QTableWidget, QSpinBox, \
-    QHeaderView, QTableWidgetItem, QAbstractItemView, QSplitter, QCheckBox, QMenu
+    QHeaderView, QTableWidgetItem, QAbstractItemView, QSplitter, QCheckBox, QMenu, QProgressDialog
 from PyQt5.QtCore import QSettings, QPoint
 
 from pytesseract import pytesseract, Output
@@ -130,8 +130,10 @@ class Indexer(QWidget):
         self.run_indexer()
 
     def remove_clicked(self):
-        self.wheres_the_fck_receipt.remove_directory(self.directories.currentItem().text())
-        self.directories.takeItem(self.directories.currentRow())
+        progress_updater = ProgressUpdater()
+        self.wheres_the_fck_receipt.remove_directory(self.directories.currentItem().text(), progress_updater)
+        if progress_updater.canceled() is False:
+            self.directories.takeItem(self.directories.currentRow())
 
     def reindex_clicked(self):
         self.index_job = self.wheres_the_fck_receipt.reindex_directory(self.directories.currentItem().text())
@@ -204,7 +206,6 @@ class SearcherWidget(QWidget):
         self.query.mousePressEvent = lambda _: self.query.selectAll()
         self.query.returnPressed.connect(self.search_button_clicked)
         self.limit_box = QSpinBox()
-        self.limit_box.setValue(int(self.wheres_the_fck_receipt.get_settings()["default_limit"][0]))
         self.limit_box.valueChanged.connect(self.search_button_clicked)
         self.cs_box = QCheckBox("Case Sensitive")
         self.cs_box.stateChanged.connect(self.search_button_clicked)
@@ -366,7 +367,72 @@ class SettingsWidget(QTableWidget):
         self.wheres_the_fck_receipt.set_settings(settings)
 
 
+class ProgressUpdater(api_interface.ProgressUpdater):
+
+    def __init__(self):
+        self._dialog = None
+        self._canceled = False
+
+    def set_range(self, min, max):
+        self._assert_dialog()
+        self._dialog.setRange(min, max)
+
+    def set_value(self, value):
+        if self.canceled():
+            return
+        self._assert_dialog()
+        self._dialog.setValue(value)
+        loop = QEventLoop()
+        QTimer.singleShot(1000, loop.quit)
+        loop.exec_()
+
+    def _assert_dialog(self):
+        if self._dialog is None:
+            self._dialog = QtWidgets.QProgressDialog()
+            self._dialog.setWindowModality(Qt.WindowModal)
+            self._dialog.setAutoClose(True)
+            self._dialog.canceled.connect(self.canceled)
+            self._dialog.setLabelText("Processing ...")
+            btn = QtWidgets.QPushButton('Cancel')
+            btn.clicked.connect(self.set_canceled)
+            self._dialog.setEnabled(True)
+            self._dialog.setCancelButton(btn)
+            self._canceled = False
+            self._dialog.setValue(0)
+            self._dialog.closeEvent = self.close_event
+            self._dialog.show()
+
+    def close_event(self, event):
+        self.set_canceled()
+
+    def canceled(self):
+        return self._canceled
+
+    def set_canceled(self):
+        self._canceled = True
+
+
 class WheresTheFckReceipt(QMainWindow):
+
+
+    @staticmethod
+    def show_progress_dialog(callback):
+        dlg = QtWidgets.QProgressDialog()
+        dlg.setAutoClose(True)
+        btn = QtWidgets.QPushButton('Cancel')
+        btn.setEnabled(False)
+        dlg.setCancelButton(btn)
+        dlg.show()
+        dlg.setValue(0)
+
+        def update_progress(percent):
+            assert percent >= 0 and percent <= 100
+            dlg.setValue(int(percent))
+
+        callback(update_progress)
+
+        dlg.setValue(100)
+        del dlg
 
     def __init__(self, wheres_the_fck_receipt: api_interface.WheresTheFckReceipt, parent=None):
         QWidget.__init__(self, parent=None)

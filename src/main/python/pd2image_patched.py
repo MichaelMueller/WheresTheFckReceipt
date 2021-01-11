@@ -183,14 +183,17 @@ def convert_from_path(
         if poppler_path is not None:
             env["LD_LIBRARY_PATH"] = poppler_path + ":" + env.get("LD_LIBRARY_PATH", "")
         # Spawn the process and save its uuid
-        startupinfo = None
-        platform_name = platform.system()
-        if platform_name == 'Windows':
-            # this startupinfo structure prevents a console window from popping up on Windows
-            startupinfo = subprocess.STARTUPINFO()
-            startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+        # startupinfo = None
+        # platform_name = platform.system()
+        # if platform_name == 'Windows':
+        #     # this startupinfo structure prevents a console window from popping up on Windows
+        #     startupinfo = subprocess.STARTUPINFO()
+        #     startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+        # processes.append(
+        #     (thread_output_file, Popen(args, env=env, stdout=PIPE, stderr=PIPE, startupinfo=startupinfo))
+        # )
         processes.append(
-            (thread_output_file, Popen(args, env=env, stdout=PIPE, stderr=PIPE, startupinfo=startupinfo))
+            (thread_output_file, Popen(args, env=env, stdout=PIPE, stderr=PIPE, creationflags=subprocess.CREATE_NO_WINDOW ))
         )
 
     images = []
@@ -399,7 +402,7 @@ def _get_poppler_version(command, poppler_path=None):
     env = os.environ.copy()
     if poppler_path is not None:
         env["LD_LIBRARY_PATH"] = poppler_path + ":" + env.get("LD_LIBRARY_PATH", "")
-    proc = Popen(command, env=env, stdout=PIPE, stderr=PIPE)
+    proc = Popen(command, env=env, stdout=PIPE, stderr=PIPE, creationflags=subprocess.CREATE_NO_WINDOW)
 
     out, err = proc.communicate()
 
@@ -424,7 +427,7 @@ def pdfinfo_from_path(pdf_path, userpw=None, poppler_path=None):
         env = os.environ.copy()
         if poppler_path is not None:
             env["LD_LIBRARY_PATH"] = poppler_path + ":" + env.get("LD_LIBRARY_PATH", "")
-        proc = Popen(command, env=env, stdout=PIPE, stderr=PIPE)
+        proc = Popen(command, env=env, stdout=PIPE, stderr=PIPE, creationflags=subprocess.CREATE_NO_WINDOW)
 
         out, err = proc.communicate()
 

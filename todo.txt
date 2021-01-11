@@ -1,0 +1,7 @@
+Todos 1.4:
+- wrong version number (finished, v1.4)
+- poppler terminal window suppression (finished)
+- show progress bar for deletion of folders with big data (finished)
+
+Todos 1.5
+- auto download of poppler and tesseract
